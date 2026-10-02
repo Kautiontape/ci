@@ -1,0 +1,73 @@
+# PR check for Node projects: frozen install with the repo's own package
+# manager (picked from its lockfile), then the caller's commands.
+name: node
+
+on:
+  workflow_call:
+    inputs:
+      run:
+        description: Commands to run after install, e.g. "pnpm check && pnpm build"
+        type: string
+        required: true
+      working-directory:
+        type: string
+        default: .
+      node-version:
+        type: string
+        default: lts/*
+      pnpm-version:
+        description: Used when package.json has no packageManager field. Matches the pnpm@9 the Dockerfiles use.
+        type: string
+        default: "9"
+      submodules:
+        description: actions/checkout submodules value (false, true or recursive)
+        type: string
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: ${{ inputs.submodules }}
+          persist-credentials: false
+
+      - name: Detect package manager
+        id: pm
+        run: |
+          if [ -f pnpm-lock.yaml ]; then pm=pnpm lock=pnpm-lock.yaml
+          elif [ -f yarn.lock ]; then pm=yarn lock=yarn.lock
+          else pm=npm lock=package-lock.json; fi
+          echo "pm=$pm" >> "$GITHUB_OUTPUT"
+          echo "lock=$lock" >> "$GITHUB_OUTPUT"
+          if grep -q '"packageManager"' package.json; then echo "pinned=true" >> "$GITHUB_OUTPUT"; fi
+
+      - if: steps.pm.outputs.pm == 'pnpm'
+        uses: pnpm/action-setup@v6
+        with:
+          version: ${{ steps.pm.outputs.pinned != 'true' && inputs.pnpm-version || '' }}
+          package_json_file: ${{ inputs.working-directory }}/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ steps.pm.outputs.pm }}
+          cache-dependency-path: ${{ inputs.working-directory }}/${{ steps.pm.outputs.lock }}
+
+      - name: Install
+        run: |
+          case "${{ steps.pm.outputs.pm }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --frozen-lockfile ;;
+            npm) npm ci ;;
+          esac
+
+      - name: Check
+        run: ${{ inputs.run }}

@@ -1,0 +1,71 @@
+# PR check for Python projects: uv sync when there's a uv.lock, otherwise
+# pip install from requirements files, then the caller's commands.
+name: python
+
+on:
+  workflow_call:
+    inputs:
+      run:
+        description: Commands to run after install, e.g. "uv run pytest" or "pytest -q"
+        type: string
+        required: true
+      working-directory:
+        type: string
+        default: .
+      python-version:
+        description: Match the Dockerfile's python image. Empty lets uv read .python-version / requires-python.
+        type: string
+        default: ""
+      uv-sync-args:
+        type: string
+        default: --frozen
+      submodules:
+        description: actions/checkout submodules value (false, true or recursive)
+        type: string
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: ${{ inputs.submodules }}
+          persist-credentials: false
+
+      - name: Detect tool
+        id: tool
+        run: |
+          if [ -f uv.lock ]; then echo "tool=uv" >> "$GITHUB_OUTPUT"; else echo "tool=pip" >> "$GITHUB_OUTPUT"; fi
+
+      # uv: also used for the pip path's `uvx` tools (ruff etc.).
+      - uses: astral-sh/setup-uv@v10
+        with:
+          working-directory: ${{ inputs.working-directory }}
+          python-version: ${{ inputs.python-version }}
+
+      - if: steps.tool.outputs.tool == 'uv'
+        name: Install (uv)
+        run: uv sync ${{ inputs.uv-sync-args }}
+
+      - if: steps.tool.outputs.tool == 'pip'
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python-version || '3.x' }}
+
+      - if: steps.tool.outputs.tool == 'pip'
+        name: Install (pip)
+        run: |
+          python -m pip install --upgrade pip
+          for f in requirements.txt requirements-dev.txt; do
+            if [ -f "$f" ]; then python -m pip install -r "$f"; fi
+          done
+
+      - name: Check
+        run: ${{ inputs.run }}
