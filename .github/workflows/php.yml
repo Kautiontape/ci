@@ -1,0 +1,43 @@
+# PR check for PHP projects: composer install from the lockfile, then the
+# caller's commands.
+name: php
+
+on:
+  workflow_call:
+    inputs:
+      run:
+        description: Commands to run after install, e.g. "vendor/bin/phpunit"
+        type: string
+        required: true
+      working-directory:
+        type: string
+        default: .
+      php-version:
+        description: Match the Dockerfile's php image
+        type: string
+        default: "8.2"
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ inputs.php-version }}
+          tools: composer:v2
+
+      - name: Install
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Check
+        run: ${{ inputs.run }}

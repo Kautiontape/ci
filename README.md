@@ -22,6 +22,7 @@ jobs:
 |---|---|---|
 | `node.yml` | frozen install (pnpm/yarn/npm from the lockfile), then `run` | `run`, `working-directory`, `node-version`, `pnpm-version`, `submodules` |
 | `python.yml` | `uv sync --frozen` or pip requirements, then `run` | `run`, `working-directory`, `python-version`, `uv-sync-args`, `submodules` |
+| `php.yml` | `composer install` from the lockfile, then `run` | `run`, `working-directory`, `php-version` |
 | `docker-build.yml` | build the image, never push | `context`, `file`, `submodules` |
 | `actionlint.yml` | lint workflow files | none |
 
