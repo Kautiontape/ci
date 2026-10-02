@@ -20,6 +20,9 @@ jobs:
           if [ ! -f .github/actionlint.yaml ] && [ ! -f .github/actionlint.yml ]; then
             printf 'self-hosted-runner:\n  labels: [ktn, bcx]\n' > .github/actionlint.yaml
           fi
+      # Fail on shellcheck warnings and errors, not its info/style notes.
       - uses: docker://rhysd/actionlint:1.7.12
+        env:
+          SHELLCHECK_OPTS: --severity=warning
         with:
           args: -color

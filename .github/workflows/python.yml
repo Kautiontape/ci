@@ -45,7 +45,7 @@ jobs:
           if [ -f uv.lock ]; then echo "tool=uv" >> "$GITHUB_OUTPUT"; else echo "tool=pip" >> "$GITHUB_OUTPUT"; fi
 
       # uv: also used for the pip path's `uvx` tools (ruff etc.).
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           working-directory: ${{ inputs.working-directory }}
           python-version: ${{ inputs.python-version }}
